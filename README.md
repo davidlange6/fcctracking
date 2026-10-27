@@ -70,9 +70,11 @@ comes from EOS. The job uses the `LCG_110a_cuda` view (torch with CUDA), not key
            --out data/cld/campaign_mu/norm.json
 
 2. Copy them to EOS with the layout the job expects: `DATA/train/h5/*.h5`, `DATA/val/h5/*.h5`, `DATA/norm.json`.
+   The test samples go along as `DATA/test_*/h5`. `production/push_to_eos.sh` does this with rsync through
+   lxplus, forwarding the Kerberos ticket so that EOS is writable there. Re-running it copies only new or
+   changed shards.
 
-       xrdcp -r data/cld/campaign_mu/train data/cld/campaign_mu/val data/cld/campaign_mu/norm.json \
-           root://eosuser.cern.ch//eos/user/d/dlange/fcctracking/cld_mu_v1/
+       production/push_to_eos.sh data/cld/campaign_mu /eos/user/d/dlange/fcctracking/cld_mu_v1
 
 3. On lxplus, with a Kerberos ticket, in `condor/`:
 
