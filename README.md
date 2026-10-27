@@ -57,6 +57,38 @@ Costs per event (32 cores, 10 parallel jobs, 10 GeV μ): Geant4 ~0.07 s; KF reco
 perf shows is nearly all DDKalTest/aidaTT helix–surface intersection); digitisation only 3.6 ms; conversion ~0.04 s.
 Test samples keep `Refit`, because `SiTracks_Refitted` is 5–7 % better in d0/z0/φ/θ than the truth finder's own fit.
 
+## Training on HTCondor (CERN batch, GPU)
+
+The batch nodes cannot see local disk, so the code goes into the job as a tarball of the committed tree and the data
+comes from EOS. The job uses the `LCG_110a_cuda` view (torch with CUDA), not key4hep.
+
+1. Prepare the shards **before** copying them: `prepare.py` writes the seed triplets into every shard and produces
+   `norm.json`.
+
+       python scripts/prepare.py --detector fcctrackfit/config/detectors/cld.yaml \
+           --shards 'data/cld/campaign_mu/*/h5/*.h5' --train 'data/cld/campaign_mu/train/h5/*.h5' \
+           --out data/cld/campaign_mu/norm.json
+
+2. Copy them to EOS with the layout the job expects: `DATA/train/h5/*.h5`, `DATA/val/h5/*.h5`, `DATA/norm.json`.
+
+       xrdcp -r data/cld/campaign_mu/train data/cld/campaign_mu/val data/cld/campaign_mu/norm.json \
+           root://eosuser.cern.ch//eos/user/d/dlange/fcctrack/cld_mu_v1/
+
+3. On lxplus, with a Kerberos ticket, in `condor/`:
+
+       ./make_bundle.sh                 # git HEAD -> fcctrackfit_code.tar.gz (warns about uncommitted changes)
+       condor_submit train.sub          # phase 1 with the defaults in train.sub
+       condor_submit train.sub CONFIG=fcctrackfit/config/train/phase2.yaml RUN=cld_mu_v1_phase2 NGPU=2 CPUS=16 \
+           "MEMORY=32 GB" INIT_FROM=/eos/user/d/dlange/fcctrack/runs/cld_mu_v1_phase1/final.pt
+       condor_submit train.sub RUN=lr1e-4 OVERRIDES="train.lr=1e-4"
+
+`condor/train_job.sh` stages the shards to the node's scratch disk, then runs `scripts/train.py`, or `torchrun` when it
+has more than one GPU. Every 15 min and at exit it copies `last.pt`, `final.pt`, `log.csv` and `train.out` to
+`RUNS_DIR/RUN` on EOS. Checkpoints are written once per epoch. When the job is resubmitted with the same `RUN` it
+resumes from that `last.pt`, for example after it hits the 3-day `testmatch` limit. For a very large training set, use
+`train.max_tracks_per_epoch` to keep epochs shorter than the sync and eviction time scales. To test the job script
+without condor or EOS, set `EOS_MGM=local` and use local paths.
+
 ## Sample contract (input to stage 1)
 
 Per event:

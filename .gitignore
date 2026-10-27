@@ -11,3 +11,6 @@
 __pycache__/
 *.egg-info/
 .pytest_cache/
+# condor job bundle and logs
+/condor/fcctrackfit_code.tar.gz
+/condor/logs/
