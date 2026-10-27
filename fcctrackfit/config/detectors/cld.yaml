@@ -1,0 +1,28 @@
+# CLD (all-silicon). Collection names follow the CLDConfig reconstruction steering;
+# check them against the production used (python -m fcctrackfit.convert.inspect <file>).
+name: CLD
+bz: 2.0
+mc_particles: MCParticles
+# digitised hits -> (hit type, link collection to SimTrackerHits)
+trackers:
+  - {hits: VXDTrackerHits,        links: VXDTrackerHitRelations,             kind: si_plane}
+  - {hits: VXDEndcapTrackerHits,  links: VXDEndcapTrackerHitRelations,       kind: si_plane}
+  - {hits: ITrackerHits,          links: InnerTrackerBarrelHitsRelations,    kind: si_plane}
+  - {hits: ITrackerEndcapHits,    links: InnerTrackerEndcapHitsRelations,    kind: si_plane}
+  - {hits: OTrackerHits,          links: OuterTrackerBarrelHitsRelations,    kind: si_plane}
+  - {hits: OTrackerEndcapHits,    links: OuterTrackerEndcapHitsRelations,    kind: si_plane}
+# truth-seeded Kalman-filter baseline (Track collection with an AtIP TrackState)
+kf_tracks: SiTracks_Refitted
+selection:
+  pdg: [13, -13]
+  generator_status: [1]
+  max_abs_cos_theta: 0.99
+  min_hits: 6
+  max_hits: 30
+  drop_secondary_hits: true
+# DD4hep system ids: 1/2 VXD barrel/endcap, 3/4 IT, 5/6 OT
+seed:
+  rule: spread
+  systems: [1, 2, 3, 4, 5, 6]
+residual_scale_mm: 0.01
+qop_eps: 0.02

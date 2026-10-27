@@ -1,0 +1,23 @@
+# CPU smoke test on toy shards (scripts/make_toy.py).
+out_dir: runs/smoke
+seed: 0
+data:
+  train: data/toy/train/*.h5
+  val: data/toy/val/*.h5
+  norm: data/toy/norm.json
+  val_tracks: 5000
+model:
+  hit_columns: [x, y, z, t, r, phi, theta, system, layer, side, du, dv]
+  d_model: 64
+  hidden: 64
+  n_layers: 2
+  n_scales: 16
+  head_hidden: 64
+train:
+  optimizer: lion
+  lr: 3.0e-4
+  schedule: one_cycle
+  batch_size: 256
+  epochs: 3
+  workers: 0
+  log_every: 50

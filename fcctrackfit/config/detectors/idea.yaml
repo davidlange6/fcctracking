@@ -1,0 +1,26 @@
+# IDEA (silicon vertex/wrapper + drift chamber). Drift-chamber input is not supported
+# yet (plan milestone 6); with use_drift: false only silicon hits are converted.
+name: IDEA
+bz: 2.0
+mc_particles: MCParticles
+trackers:
+  - {hits: VTXIBDigis,  links: VTXIBSimDigiLinks,  kind: si_plane}
+  - {hits: VTXOBDigis,  links: VTXOBSimDigiLinks,  kind: si_plane}
+  - {hits: VTXDDigis,   links: VTXDSimDigiLinks,   kind: si_plane}
+  - {hits: SiWrBDigis,  links: SiWrBSimDigiLinks,  kind: si_plane}
+  - {hits: SiWrDDigis,  links: SiWrDSimDigiLinks,  kind: si_plane}
+  - {hits: DCH_DigiCollection, links: DCH_DigiSimAssociationCollection, kind: drift}
+use_drift: false
+kf_tracks: TracksFromGenParticles  # set to the truth-seeded fitted track collection of the production
+selection:
+  pdg: [13, -13]
+  generator_status: [1]
+  max_abs_cos_theta: 0.99
+  min_hits: 6
+  max_hits: 200
+  drop_secondary_hits: true
+seed:
+  rule: spread
+  systems: [1, 2, 3, 4]   # silicon systems only; adjust to the IDEA DD4hep ids
+residual_scale_mm: 0.01
+qop_eps: 0.02

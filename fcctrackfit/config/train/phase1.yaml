@@ -1,0 +1,26 @@
+# Phase 1 (paper Sec. 3.4): Lion, one-cycle, small batch, strict fp32.
+out_dir: runs/cld_phase1
+seed: 0
+data:
+  train: data/cld/train/*.h5
+  val: data/cld/val/*.h5
+  norm: data/cld/norm.json
+  val_tracks: 200000
+model:
+  # 12 hit features as in the paper (+3 seed residuals added by the model)
+  hit_columns: [x, y, z, t, r, phi, theta, system, layer, side, du, dv]
+  d_model: 128
+  hidden: 192
+  n_layers: 2
+  n_scales: 16
+  head_hidden: 128
+train:
+  optimizer: lion
+  lr: 3.0e-4
+  weight_decay: 0.0
+  schedule: one_cycle
+  warmup_frac: 0.05
+  batch_size: 2048
+  epochs: 25
+  workers: 8
+  log_every: 500

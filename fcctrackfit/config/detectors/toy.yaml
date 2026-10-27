@@ -1,0 +1,8 @@
+# Toy barrel tracker (fcctrackfit/toy/sim.py), for CPU development.
+name: toy
+bz: 2.0
+seed:
+  rule: spread
+  systems: [1, 3, 5]
+residual_scale_mm: 0.01
+qop_eps: 0.02

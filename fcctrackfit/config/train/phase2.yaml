@@ -1,0 +1,27 @@
+# Phase 2 annealing: Muon + AdamW, warmup-stable-decay, large batch (run with torchrun).
+out_dir: runs/cld_phase2
+init_from: runs/cld_phase1/final.pt
+seed: 1
+data:
+  train: data/cld/train/*.h5
+  val: data/cld/val/*.h5
+  norm: data/cld/norm.json
+  val_tracks: 200000
+model:
+  hit_columns: [x, y, z, t, r, phi, theta, system, layer, side, du, dv]
+  d_model: 128
+  hidden: 192
+  n_layers: 2
+  n_scales: 16
+  head_hidden: 128
+train:
+  optimizer: muon_adamw
+  lr: 1.0e-4        # AdamW part
+  lr_muon: 2.0e-3
+  schedule: wsd
+  warmup_frac: 0.02
+  decay_frac: 0.3
+  batch_size: 20000  # per GPU
+  epochs: 25
+  workers: 8
+  log_every: 200

@@ -1,0 +1,13 @@
+# generated data, training outputs, evaluation products
+/data/
+/runs/
+/eval/
+*.h5
+*.root
+*.pt
+*.npz
+# the paper itself (arXiv:2609.32479) is linked, not redistributed
+*.pdf
+__pycache__/
+*.egg-info/
+.pytest_cache/
