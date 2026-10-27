@@ -10,15 +10,16 @@
 #
 # Optional environment: VTX_SIGMA_XY / VTX_SIGMA_Z (vertex Gaussian sigmas, mm; default 1 / 20),
 # LOG_FRAC (default 0.5), COS_THETA_MAX (default 0.99), NO_KF=1 (digitisation only: no truth
-# tracking / KF refit, for training samples), KEEP_SIM=1, COMPACT (geometry xml),
+# tracking / KF refit, for training samples), KEEP_SIM=1, KEEP_REC (keep the reconstructed ROOT
+# file after conversion; default 1 with the KF, 0 with NO_KF=1), COMPACT (geometry xml),
 # DETECTOR_CFG (converter YAML), DEADLINE (unix time; the job is skipped if started later).
 #
-# Outputs: OUTDIR/raw/<name>_REC.edm4hep.root, OUTDIR/h5/<name>.h5, OUTDIR/logs/<name>_*.log
+# Outputs: OUTDIR/h5/<name>.h5, OUTDIR/raw/<name>_REC.edm4hep.root (if kept), OUTDIR/logs/<name>_*.log
 # Needs the key4hep stack (K4GEO, CLDCONFIG).
 set -euo pipefail
 
 if [ $# -ne 5 ]; then
-    sed -n '2,19p' "$0"
+    sed -n '2,20p' "$0"
     exit 1
 fi
 particle=$1; momentum=$2; nevents=$3; seed=$4; outdir=$(realpath -m "$5")
@@ -83,6 +84,9 @@ PYTHONPATH="$repo${PYTHONPATH:+:$PYTHONPATH}" python3 "$repo/scripts/convert.py"
       --detector "$detector_cfg" --out "$outdir/h5" "$outdir/raw/${name}_REC.edm4hep.root" \
       > "$outdir/logs/${name}_convert.log" 2>&1
 mv "$outdir/h5/${name}_REC.edm4hep.h5" "$outdir/h5/${name}.h5"
+if [ "${KEEP_REC:-$([ "${NO_KF:-0}" = 1 ] && echo 0 || echo 1)}" = 0 ]; then
+    rm "$outdir/raw/${name}_REC.edm4hep.root"
+fi
 t3=$(date +%s)
 echo "$name: $nevents events, sim $((t1 - t0)) s, reco $((t2 - t1)) s, convert $((t3 - t2)) s;" \
      "$(grep -h -- '->' "$outdir/logs/${name}_convert.log" | sed 's/.*: //')"
