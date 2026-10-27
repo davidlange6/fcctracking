@@ -18,13 +18,14 @@ view=${LCG_VIEW:-/cvmfs/sft.cern.ch/lcg/views/LCG_110a_cuda/x86_64-el9-gcc13-opt
 scratch=${_CONDOR_SCRATCH_DIR:-$PWD}
 
 if [ "$mgm" = local ]; then
-    fetch_dir() { cp -r "$1" "$2"; }
+    fetch_dir() { mkdir -p "$2" && cp -r "$1" "$2/"; }
     fetch() { cp "$1" "$2"; }
     put() { cp "$1" "$2"; }
     exists() { [ -e "$1" ]; }
     make_dir() { mkdir -p "$1"; }
 else
-    fetch_dir() { xrdcp -r -s --parallel 8 "$mgm/$1" "$2"; }
+    # xrdcp -r needs an existing destination directory
+    fetch_dir() { mkdir -p "$2" && xrdcp -r -s --parallel 8 "$mgm/$1" "$2/"; }
     fetch() { xrdcp -f -s "$mgm/$1" "$2"; }
     put() { xrdcp -f -s "$1" "$mgm/$2"; }
     exists() { xrdfs "${mgm#root://}" stat "$1" > /dev/null 2>&1; }
