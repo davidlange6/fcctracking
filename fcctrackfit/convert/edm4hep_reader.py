@@ -120,7 +120,9 @@ def convert_event(event, cfg, coders, available):
                 if ts.location == ts.AtIP:
                     lcio = [ts.D0, ts.phi, ts.omega, ts.Z0, ts.tanLambda]
                     ref = ts.referencePoint
-                    kf[mc_index] = (n, lcio, (ref.x, ref.y, ref.z), list(ts.covMatrix))
+                    # CovMatrix6f has an unchecked operator[] and no length: never iterate it
+                    cov = ts.covMatrix
+                    kf[mc_index] = (n, lcio, (ref.x, ref.y, ref.z), [cov[i] for i in range(21)])
                     break
 
     tracks = []
