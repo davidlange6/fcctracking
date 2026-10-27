@@ -80,9 +80,21 @@ comes from EOS. The job uses the `LCG_110a_cuda` view (torch with CUDA), not key
 
        ./make_bundle.sh                 # git HEAD -> fcctrackfit_code.tar.gz (warns about uncommitted changes)
        condor_submit train.sub          # phase 1 with the defaults in train.sub
-       condor_submit train.sub CONFIG=fcctrackfit/config/train/phase2.yaml RUN=cld_mu_v1_phase2 NGPU=2 CPUS=16 \
-           "MEMORY=32 GB" INIT_FROM=/eos/user/d/dlange/fcctracking/runs/cld_mu_v1_phase1/final.pt
+       condor_submit train.sub CONFIG=fcctrackfit/config/train/phase2.yaml RUN=cld_mu_v1_phase2 NGPU=2 CPUS=8 \
+           "MEMORY=24 GB" INIT_FROM=/eos/user/d/dlange/fcctracking/runs/cld_mu_v1_phase1/final.pt
        condor_submit train.sub RUN=lr1e-4 OVERRIDES="train.lr=1e-4"
+
+GPU availability and job status (on lxplus):
+
+    # free / total GPUs by type (partitionable slots; Gpus = still unallocated)
+    condor_status -constraint 'TotalGpus > 0 && SlotType == "Partitionable"' -af GPUs_DeviceName Gpus TotalGpus \
+        | awk '{t=$NF; f=$(NF-1); $NF=$(NF-1)=""; free[$0]+=f; tot[$0]+=t} END {for (k in tot) print free[k] "/" tot[k], k}'
+    condor_q                                   # your jobs
+    condor_q -better-analyze <ClusterId>       # why an idle job does not match
+
+The H200s and some H100 NVLs only take jobs from the BE-ABP / ATS GPU groups, so they show up as free
+but never match. The V100 nodes give 4 CPUs and 16 GB per GPU. That sets the defaults in `train.sub`:
+a larger request can only run on the A100 / H100 NVL nodes.
 
 `condor/train_job.sh` stages the shards to the node's scratch disk, then runs `scripts/train.py`, or `torchrun` when it
 has more than one GPU. Every 15 min and at exit it copies `last.pt`, `final.pt`, `log.csv` and `train.out` to

@@ -77,8 +77,16 @@ sync_out() {
 syncer=$!
 trap 'kill $syncer 2>/dev/null; sync_out' EXIT
 
+# data-loader workers per training process: the CPUs condor gave us, shared between the
+# GPUs, minus one for each training process
+cpus=$(awk '$1 == "RequestCpus" {print $3}' "${_CONDOR_JOB_AD:-/dev/null}" 2>/dev/null || true)
+cpus=${cpus:-$(nproc)}
+per_gpu=$(( cpus / (ngpu > 1 ? ngpu : 1) ))
+workers=$(( per_gpu > 1 ? per_gpu - 1 : 1 ))
+echo "$cpus CPUs: $workers data-loader workers per GPU"
+
 overrides=(out_dir="$scratch/run" data.train="$scratch/data/train/h5/*.h5" data.val="$scratch/data/val/h5/*.h5"
-           data.norm="$scratch/data/norm.json" "${init[@]}" "$@")
+           data.norm="$scratch/data/norm.json" train.workers="$workers" "${init[@]}" "$@")
 cd "$scratch/code"
 if [ "$ngpu" -gt 1 ]; then
     torchrun --standalone --nproc_per_node="$ngpu" scripts/train.py "$config" "${overrides[@]}" 2>&1 | tee -a "$scratch/run/train.out"
