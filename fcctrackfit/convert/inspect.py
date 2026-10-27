@@ -20,7 +20,7 @@ def main():
         print(f"--- event {i}")
         for name in sorted(event.getAvailableCollections()):
             coll = event.get(name)
-            print(f"  {name:45s} {coll.getValueTypeName():40s} {len(coll)}")
+            print(f"  {name:45s} {str(coll.getValueTypeName()):40s} {len(coll)}")
     if "metadata" in reader.categories:
         meta = reader.get("metadata")[0]
         for key in sorted(meta.parameters):

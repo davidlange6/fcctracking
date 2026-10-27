@@ -1,16 +1,17 @@
-# CLD (all-silicon). Collection names follow the CLDConfig reconstruction steering;
-# check them against the production used (python -m fcctrackfit.convert.inspect <file>).
+# CLD (all-silicon). Collection names checked against a CLDConfig (--truthTracking
+# --trackingOnly) REC file from production/run_cld.sh. CellID encodings live under the
+# sim-hit collection names.
 name: CLD
 bz: 2.0
 mc_particles: MCParticles
 # digitised hits -> (hit type, link collection to SimTrackerHits)
 trackers:
-  - {hits: VXDTrackerHits,        links: VXDTrackerHitRelations,             kind: si_plane}
-  - {hits: VXDEndcapTrackerHits,  links: VXDEndcapTrackerHitRelations,       kind: si_plane}
-  - {hits: ITrackerHits,          links: InnerTrackerBarrelHitsRelations,    kind: si_plane}
-  - {hits: ITrackerEndcapHits,    links: InnerTrackerEndcapHitsRelations,    kind: si_plane}
-  - {hits: OTrackerHits,          links: OuterTrackerBarrelHitsRelations,    kind: si_plane}
-  - {hits: OTrackerEndcapHits,    links: OuterTrackerEndcapHitsRelations,    kind: si_plane}
+  - {hits: VXDTrackerHits,        links: VXDTrackerHitRelations,             kind: si_plane, cellid_from: VertexBarrelCollection}
+  - {hits: VXDEndcapTrackerHits,  links: VXDEndcapTrackerHitRelations,       kind: si_plane, cellid_from: VertexEndcapCollection}
+  - {hits: ITrackerHits,          links: InnerTrackerBarrelHitsRelations,    kind: si_plane, cellid_from: InnerTrackerBarrelCollection}
+  - {hits: ITrackerEndcapHits,    links: InnerTrackerEndcapHitsRelations,    kind: si_plane, cellid_from: InnerTrackerEndcapCollection}
+  - {hits: OTrackerHits,          links: OuterTrackerBarrelHitsRelations,    kind: si_plane, cellid_from: OuterTrackerBarrelCollection}
+  - {hits: OTrackerEndcapHits,    links: OuterTrackerEndcapHitsRelations,    kind: si_plane, cellid_from: OuterTrackerEndcapCollection}
 # truth-seeded Kalman-filter baseline (Track collection with an AtIP TrackState)
 kf_tracks: SiTracks_Refitted
 selection:

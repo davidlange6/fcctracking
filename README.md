@@ -15,8 +15,8 @@ Run everything with the package on the path: `export PYTHONPATH=$PWD:$PYTHONPATH
 
 | Stage | Command | Where |
 |---|---|---|
-| 0. samples (separate) | ddsim + digi + truth-tracking/KF → edm4hep files that satisfy the contract below | key4hep |
-| 1. convert | `python scripts/convert.py --detector fcctrackfit/config/detectors/cld.yaml --out data/cld/train files...` | key4hep, CPU, one job per file |
+| 0+1. CLD samples | `production/launch_local.sh mu- 10 10000 1000 10 data/cld/mu10 1000` (ddsim gun → CLDReconstruction `--truthTracking` → HDF5 shard, per job) | key4hep, CPU |
+| 1. convert (other productions) | `python scripts/convert.py --detector fcctrackfit/config/detectors/cld.yaml --out data/cld/train files...` | key4hep, CPU, one job per file |
 | 2. prepare | `python scripts/prepare.py --detector .../cld.yaml --shards 'data/cld/*/*.h5' --train 'data/cld/train/*.h5' --out data/cld/norm.json` | CPU |
 | 3. train | `python scripts/train.py fcctrackfit/config/train/phase1.yaml` then `torchrun --nproc_per_node=2 scripts/train.py .../phase2.yaml` | GPU |
 | 4. evaluate | `python scripts/evaluate.py runs/cld_phase2/final.pt --test 'data/cld/test_mu10/*.h5' --name mu10 --out eval/cld` | GPU or CPU |
@@ -25,6 +25,17 @@ Config values can be overridden on the command line, e.g. `scripts/train.py cfg.
 Training resumes from `out_dir/last.pt` if it exists.
 
 To find the collection names of a production: `python -m fcctrackfit.convert.inspect file.root`.
+
+## CLD sample production
+
+`production/make_sample.sh PARTICLE ENERGY N_EVENTS SEED OUTDIR` runs one job. It does a ddsim particle gun
+(uniform in cosθ, |cosθ| ≤ 0.99, no crossing-angle boost), then `CLDReconstruction.py --truthTracking --trackingOnly -n -1`
+(truth-hit `SiTracks` + KF refit `SiTracks_Refitted`), then conversion to `OUTDIR/h5/<name>.h5`. ENERGY is a fixed energy
+in GeV or a momentum range `PMIN:PMAX`. `production/launch_local.sh` splits a sample into such jobs with seeds
+`SEED_BASE + i` and runs them in parallel. Give every sample a disjoint seed range.
+
+Measured on 32 cores (10 GeV μ, 1000 events per job, 10 jobs in parallel): sim ~105 s, reco ~290 s, convert ~40 s per job.
+10k events take about 7 min wall. Reconstruction (~0.27 s/event) is the bottleneck.
 
 ## Sample contract (input to stage 1)
 

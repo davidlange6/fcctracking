@@ -25,14 +25,19 @@ def _cellid_coders(reader, trackers):
     except Exception:
         meta = None
     for t in trackers:
+        # digitised hits share the encoding of their sim-hit collection, which is
+        # where the CLD reconstruction stores it
+        names = [t["hits"]] + ([t["cellid_from"]] if "cellid_from" in t else [])
         enc = None
-        if meta is not None:
+        for name in names:
+            if meta is None or enc:
+                break
             try:
-                enc = meta.get_parameter(f"{t['hits']}__CellIDEncoding")
+                enc = meta.get_parameter(f"{name}__CellIDEncoding")
             except Exception:
                 enc = None
         if not enc:
-            raise RuntimeError(f"no CellIDEncoding metadata for {t['hits']}")
+            raise RuntimeError(f"no CellIDEncoding metadata for any of {names}")
         coders[t["hits"]] = BitFieldCoder(str(enc))
     return coders
 
