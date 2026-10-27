@@ -18,7 +18,7 @@ args = ap.parse_args()
 det = load_config(args.detector)
 for pat in args.shards:
     for path in sorted(glob.glob(pat)):
-        print(f"{path}: {add_seed_indices(path, det['seed']):.4f} of tracks have a seed triplet")
+        print(f"{path}: {add_seed_indices(path, det['seed'], det['bz']):.4f} of tracks have a seed triplet")
 norm = compute_norm(sorted(glob.glob(args.train)), args.hit_columns, det["bz"], det["qop_eps"],
                     det["residual_scale_mm"], max_tracks=args.max_tracks)  # fmt: skip
 save_norm(norm, args.out)

@@ -9,9 +9,13 @@ transverse arc length between bottom and top hit. The state at the bottom hit is
 then transported analytically to the perigee. Run in float64.
 """
 
+import math
+
 import torch
 
 from fcctrackfit.geometry.perigee import K_BFIELD, perigee_from_state
+
+C_MM_PER_NS = 299.792458
 
 
 def estimate_seed(x1, x2, x3, bz):
@@ -52,24 +56,40 @@ def estimate_seed(x1, x2, x3, bz):
     return perigee_from_state(x1, mom, torch.sign(q_over_pt), bz)
 
 
-def select_seed_hits(offsets, layer_key, is_seedable, r=None, rule="spread"):
+def select_seed_hits(offsets, layer_key, is_seedable, r=None, rule="spread", pos=None, time=None, bz=None,
+                     max_turn=0.4 * math.pi):  # fmt: skip
     """Indices (global, into the flat hit array) of the seed triplet per track.
 
     rule "first3": the first three seedable hits (stored, i.e. time, order) on
     distinct layers. With closely spaced inner layers this gives a short lever
     arm and a poor curvature at high pT.
     rule "spread": the first seedable hit, the outermost seedable hit on the
-    outgoing arm (before r first decreases) and the hit closest to mid-radius
-    in between, all on distinct layers. Requires r.
+    outgoing arm and the hit closest to mid-radius in between, all on distinct
+    layers. Requires r. The arm ends where r first decreases. With pos, time and
+    bz it also ends where the transverse turning angle since the first hit,
+    estimated as c dt sin(theta) / R (beta = 1, an upper bound) from a "first3"
+    helix, exceeds max_turn: a looper can complete whole turns between two hits,
+    or return to a layer, without r decreasing.
     Tracks without a valid triplet get -1 entries.
 
     offsets: [T+1] int; layer_key: [N] int (unique per sensitive layer);
-    is_seedable: [N] bool; r: [N] float. numpy arrays.
+    is_seedable: [N] bool; r: [N] float; pos: [N, 3] mm; time: [N] ns. numpy arrays.
     """
     import numpy as np
 
     n_tracks = len(offsets) - 1
     out = np.full((n_tracks, 3), -1, dtype=np.int64)
+    turn_rate = None
+    if rule == "spread" and time is not None:
+        # turning angle per ns of flight from a rough inner helix
+        inner = select_seed_hits(offsets, layer_key, is_seedable, rule="first3")
+        ok = (inner >= 0).all(1)
+        turn_rate = np.zeros(n_tracks)
+        if ok.any():
+            x = torch.as_tensor(pos, dtype=torch.float64)
+            rough = estimate_seed(*(x[inner[ok, k]] for k in range(3)), bz).numpy()
+            radius = np.sin(rough[:, 3]) / (np.abs(rough[:, 4]) * K_BFIELD * abs(bz))
+            turn_rate[ok] = C_MM_PER_NS * np.sin(rough[:, 3]) / radius
     for t in range(n_tracks):
         cand = [i for i in range(offsets[t], offsets[t + 1]) if is_seedable[i]]
         if rule == "first3":
@@ -87,6 +107,8 @@ def select_seed_hits(offsets, layer_key, is_seedable, r=None, rule="spread"):
         arm = []
         for i in cand:
             if arm and r[i] < r[arm[-1]]:
+                break
+            if arm and turn_rate is not None and turn_rate[t] * (time[i] - time[arm[0]]) > max_turn:
                 break
             arm.append(i)
         if len(arm) < 3:

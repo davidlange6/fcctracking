@@ -2,7 +2,7 @@ import numpy as np
 import torch
 
 from fcctrackfit.data.dataset import gather_tracks
-from fcctrackfit.data.normalize import compute_norm
+from fcctrackfit.data.normalize import compute_norm, fit_resolution
 from fcctrackfit.data.shards import COL, layer_key
 from fcctrackfit.model.fitter import QUANTILES, TrackFitter, apply_corrections, make_targets
 from fcctrackfit.model.mingru import BiMinGRULayer, PackedIndex
@@ -46,6 +46,24 @@ def test_targets_roundtrip():
     t = make_targets(truth.clone(), seed, windows, 0.02)
     back = apply_corrections(seed, t, windows, 0.02)
     assert torch.allclose(back, truth, atol=1e-12)
+    resolution = torch.tensor([[0.003, 0.05, 1.5], [0.004, 0.1, 2.5], [1e-4, 0.004, 1], [1e-4, 0.004, 0],
+                               [0.002, 0.01, 1]], dtype=torch.float64)  # fmt: skip
+    t = make_targets(truth.clone(), seed, windows, 0.02, resolution)
+    assert torch.allclose(apply_corrections(seed, t, windows, 0.02, resolution), truth, atol=1e-12)
+    per_q = apply_corrections(seed, t.unsqueeze(1).expand(-1, 3, -1), windows, 0.02, resolution)
+    assert torch.allclose(per_q, truth.unsqueeze(1).expand(-1, 3, -1), atol=1e-12)
+
+
+def test_fit_resolution_recovers_model():
+    rng = np.random.default_rng(0)
+    n = 400_000
+    inv_p = 1 / np.exp(rng.uniform(np.log(0.2), np.log(50), n))
+    sin_theta = np.sqrt(1 - rng.uniform(-0.99, 0.99, n) ** 2)
+    a, b, c = np.array([0.003, 1e-4]), np.array([0.05, 0.004]), np.array([1.5, 0.0])
+    delta = rng.normal(size=(n, 2)) * np.hypot(a, b * inv_p[:, None]) * sin_theta[:, None] ** -c
+    res = fit_resolution(delta, inv_p, sin_theta)
+    assert np.allclose(res[:, 0], a, rtol=0.05) and np.allclose(res[:, 1], b, rtol=0.05)
+    assert np.allclose(res[:, 2], c, atol=0.05)
 
 
 def test_pinball_minimised_at_quantile():

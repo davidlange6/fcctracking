@@ -6,7 +6,7 @@ import torch
 from torch import nn
 
 from fcctrackfit.data.shards import COL
-from fcctrackfit.geometry.perigee import PHI, QOP, wrap_angle
+from fcctrackfit.geometry.perigee import PHI, QOP, THETA, wrap_angle
 from fcctrackfit.model.mingru import BiMinGRUEncoder
 from fcctrackfit.seed.conformal import estimate_seed
 from fcctrackfit.seed.residuals import seed_residuals
@@ -29,17 +29,38 @@ class FourierFeatures(nn.Module):
         return torch.cat([torch.sin(arg), torch.cos(arg)], dim=-1)
 
 
-def make_targets(truth, seed, windows, qop_eps):
-    """Seed-anchored regression targets [B, 5], scaled by the per-parameter windows."""
+def target_scale(seed, resolution):
+    """Expected seed error [B, 5] per parameter, hypot(a, b / p) * sin(theta)^-c at the seed
+    momentum p = 1 / |q/p| and polar angle.
+
+    resolution: [5, 3] (a, b, c) from data.normalize.fit_resolution ([5, 2] means c = 0);
+    (1, 0, 0) means no scaling.
+    """
+    inv_p = seed[:, QOP].abs().unsqueeze(-1)
+    scale = torch.hypot(resolution[:, 0], resolution[:, 1] * inv_p)
+    if resolution.shape[1] > 2:
+        sin_theta = torch.sin(seed[:, THETA]).abs().clamp(min=1e-3).unsqueeze(-1)
+        scale = scale * sin_theta ** -resolution[:, 2]
+    return scale
+
+
+def make_targets(truth, seed, windows, qop_eps, resolution=None):
+    """Seed-anchored regression targets [B, 5], scaled by the momentum-dependent expected
+    seed error (if resolution is given) and the per-parameter windows."""
     delta = truth - seed
     delta[:, PHI] = wrap_angle(delta[:, PHI])
     delta[:, QOP] = delta[:, QOP] / (seed[:, QOP].abs() + qop_eps)
+    if resolution is not None:
+        delta = delta / target_scale(seed, resolution)
     return delta / windows
 
 
-def apply_corrections(seed, delta_scaled, windows, qop_eps):
+def apply_corrections(seed, delta_scaled, windows, qop_eps, resolution=None):
     """Inverse of make_targets: perigee [B, ..., 5] from scaled corrections."""
     delta = delta_scaled * windows
+    if resolution is not None:
+        scale = target_scale(seed, resolution)
+        delta = delta * (scale.unsqueeze(-2) if delta.dim() == 3 else scale)
     seed = seed.unsqueeze(-2) if delta.dim() == 3 else seed
     out = seed + delta
     out[..., QOP] = seed[..., QOP] + delta[..., QOP] * (seed[..., QOP].abs() + qop_eps)
@@ -60,6 +81,9 @@ class TrackFitter(nn.Module):
         self.register_buffer("lo", torch.tensor([norm["features"][c][0] for c in names], dtype=torch.float32))
         self.register_buffer("hi", torch.tensor([norm["features"][c][1] for c in names], dtype=torch.float32))
         self.register_buffer("windows", torch.tensor(norm["windows"], dtype=torch.float64))
+        # not persistent: rebuilt from norm, so checkpoints from before the momentum scaling still load
+        resolution = norm.get("resolution", [[1.0, 0.0, 0.0]] * 5)
+        self.register_buffer("resolution", torch.tensor(resolution, dtype=torch.float64), persistent=False)
         n_feat = len(names)
         self.fourier = FourierFeatures(n_scales)
         self.embed = nn.Sequential(
@@ -99,5 +123,5 @@ class TrackFitter(nn.Module):
         """Median perigee [B, 5] and all quantile perigees [B, Q, 5], float64."""
         q, seed = self(batch)
         q = torch.sort(q.double(), dim=-1).values  # enforce monotone quantiles
-        per_q = apply_corrections(seed, q.transpose(1, 2), self.windows, self.qop_eps)
+        per_q = apply_corrections(seed, q.transpose(1, 2), self.windows, self.qop_eps, self.resolution)
         return per_q[:, MEDIAN], per_q

@@ -114,7 +114,7 @@ def train(cfg):
             batch = to_device(batch, device)
             set_lr(opt, lr_factor(step, total, t["schedule"], t.get("warmup_frac", 0.05), t.get("decay_frac", 0.2)))
             q, seed = net(batch)
-            target = make_targets(batch["truth"], seed, model.windows, model.qop_eps)
+            target = make_targets(batch["truth"], seed, model.windows, model.qop_eps, model.resolution)
             loss = pinball_loss(q, target)
             opt.zero_grad(set_to_none=True)
             loss.backward()

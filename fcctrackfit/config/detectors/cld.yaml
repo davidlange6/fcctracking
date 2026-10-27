@@ -25,5 +25,8 @@ selection:
 seed:
   rule: spread
   systems: [1, 2, 3, 4, 5, 6]
+  # end the outgoing arm where the turning angle estimated from the hit time exceeds this
+  # (rad; loopers that turn between hits or revisit a layer)
+  max_turn: 1.26
 residual_scale_mm: 0.01
 qop_eps: 0.02
