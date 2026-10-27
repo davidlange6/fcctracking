@@ -93,8 +93,9 @@ GPU availability and job status (on lxplus):
     condor_q -better-analyze <ClusterId>       # why an idle job does not match
 
 The H200s and some H100 NVLs only take jobs from the BE-ABP / ATS GPU groups, so they show up as free
-but never match. The V100 nodes give 4 CPUs and 16 GB per GPU. That sets the defaults in `train.sub`:
-a larger request can only run on the A100 / H100 NVL nodes.
+but never match. V100s are excluded: the LCG torch builds have no sm_70 kernels. The default request in
+`train.sub` (4 CPUs, 12 GB) also fits the H100 MIG slices; a larger request can only run on the A100 /
+H100 NVL nodes.
 
 `condor/train_job.sh` stages the shards to the node's scratch disk, then runs `scripts/train.py`, or `torchrun` when it
 has more than one GPU. Every 15 min and at exit it copies `last.pt`, `final.pt`, `log.csv` and `train.out` to

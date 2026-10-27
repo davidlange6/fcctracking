@@ -35,8 +35,13 @@ fi
 set +u
 source "$view/setup.sh"
 set -u
-ngpu=$(nvidia-smi -L 2>/dev/null | wc -l || true)
+# count the devices torch can use (nvidia-smi -L also lists MIG instances as extra lines)
+ngpu=$(python3 -c "import torch; print(torch.cuda.device_count())" 2>/dev/null || echo 0)
 echo "host $(hostname), $ngpu GPU(s): $(nvidia-smi --query-gpu=name,memory.total --format=csv,noheader 2>/dev/null | paste -sd ';')"
+if [ "$ngpu" -gt 0 ]; then
+    # fail early on a GPU this torch build has no kernels for (LCG torch: sm_75 and newer, no V100)
+    python3 -c "import torch; torch.zeros(1, device='cuda').add_(1); torch.cuda.synchronize()"
+fi
 
 mkdir -p "$scratch/code" "$scratch/data" "$scratch/run"
 tar -xzf "$scratch/fcctrackfit_code.tar.gz" -C "$scratch/code"

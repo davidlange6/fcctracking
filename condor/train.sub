@@ -32,8 +32,9 @@ error  = logs/$(RUN).$(ClusterId).err
 log    = logs/$(RUN).$(ClusterId).log
 
 request_gpus   = $(NGPU)
-# The V100 nodes give 4 CPUs and 16 GB per GPU: asking for more restricts the job to the
-# (often busy) A100 / H100 NVL nodes. Data-loader workers = CPUs - 1 (train_job.sh).
+# 4 CPUs / 12 GB fit every usable GPU slot, including the H100 MIG slices (1g.12gb: 6 CPUs,
+# 17 GB); asking for more limits the job to the (often busy) A100 / H100 NVL nodes.
+# Data-loader workers = CPUs - 1 per GPU (train_job.sh).
 request_cpus   = $(CPUS)
 request_memory = $(MEMORY)
 # "testmatch" = 3 days, "nextweek" = 1 week. The job resumes from $(RUNS_DIR)/$(RUN)/last.pt
@@ -42,8 +43,10 @@ request_memory = $(MEMORY)
 # GPU type (list with: condor_status -constraint 'TotalGpus > 0' -af GPUs_DeviceName | sort | uniq -c ).
 # Open to general users (Oct 2026): A100-40GB, H100 NVL, V100(S)-32GB, T4, H100 MIG slices (12/24 GB).
 # The H200s and some H100 NVLs are reserved for the BE-ABP / ATS GPU groups and never match.
-# Default GPUS: everything except MIG slices and T4s. Pin a type with e.g. "GPUS=H100 NVL" or GPUS=A100.
-GPUS         = A100|H100 NVL|H200|V100
+# V100s cannot be used: the LCG torch builds (108-110a) have kernels for sm_75 and newer only.
+# Default GPUS: A100, H100 (NVL and MIG slices), H200, T4. Pin a type with e.g. "GPUS=H100 NVL" or
+# GPUS=A100; MIG slices hold one job's single GPU, so use "GPUS=A100|H100 NVL" with NGPU > 1.
+GPUS         = A100|H100|H200|T4
 requirements = regexp("$(GPUS)", TARGET.GPUs_DeviceName)
 
 queue
