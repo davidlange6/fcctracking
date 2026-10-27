@@ -11,12 +11,15 @@
 #
 # Kinematics for every sample: one muon per event, random charge, uniform cos(theta)
 # with |cos(theta)| <= 0.99, uniform phi, vertex sigma 1 mm (xy) / 20 mm (z).
-# Seeds: train 10000+, validation 20000+, tests 30000+ (one block of 1000 per sample).
+# Seeds: train TRAIN_SEED_BASE+ (default 10000), validation 20000+, tests 30000+ (one block
+# of 1000 per sample). To extend a training sample, use a TRAIN_SEED_BASE past the seeds
+# already used, e.g. SAMPLES=train TRAIN_SEED_BASE=100000.
+# SAMPLES (default "test val train") selects what to produce.
 # Stop it with: kill -- -<PID of run_campaign.sh>  (it is its own process group).
 set -euo pipefail
 
 if [ $# -ne 2 ]; then
-    sed -n '2,15p' "$0"
+    sed -n '2,18p' "$0"
     exit 1
 fi
 outdir=$(realpath -m "$1"); hours=$2
@@ -25,11 +28,14 @@ parallel=${PARALLEL:-30}
 kf_events=${KF_EVENTS_PER_JOB:-4000}       # ~0.38 s/event incl. truth tracking + Refit
 digi_events=${DIGI_EVENTS_PER_JOB:-12500}  # ~0.11 s/event, digitisation only
 spectrum=0.2:50
+samples=" ${SAMPLES:-test val train} "
+train_seed=${TRAIN_SEED_BASE:-10000}
 mkdir -p "$outdir"
 start=$(date +%s)
 deadline=$(python3 -c "print(int($start + ($hours - 0.5) * 3600))")
 log="$outdir/campaign.log"
-echo "$(date): campaign start (pid $$), last training job start $(date -d @"$deadline"), $parallel slots" >> "$log"
+echo "$(date): campaign start (pid $$), samples:$samples train seeds from $train_seed," \
+     "last training job start $(date -d @"$deadline"), $parallel slots" >> "$log"
 
 jobs() {  # jobs SAMPLE MOMENTUM TOTAL PER_JOB SEED_BASE ENV  -> "ENV SAMPLE MOMENTUM N SEED"
     local n_jobs=$(( ($3 + $4 - 1) / $4 ))
@@ -41,13 +47,15 @@ jobs() {  # jobs SAMPLE MOMENTUM TOTAL PER_JOB SEED_BASE ENV  -> "ENV SAMPLE MOM
 KF=NO_KF=0
 DIGI="NO_KF=1,DEADLINE=$deadline"
 {
-    jobs test_p0.5 0.5 24000 "$kf_events" 30000 "$KF"
-    jobs test_p2 2 24000 "$kf_events" 31000 "$KF"
-    jobs test_p10 10 24000 "$kf_events" 32000 "$KF"
-    jobs test_p45 45 24000 "$kf_events" 33000 "$KF"
-    jobs test_spectrum "$spectrum" 100000 "$kf_events" 34000 "$KF"
-    jobs val "$spectrum" 100000 "$digi_events" 20000 "$DIGI"
-    jobs train "$spectrum" 100000000 "$digi_events" 10000 "$DIGI"
+    if [[ $samples == *" test "* ]]; then
+        jobs test_p0.5 0.5 24000 "$kf_events" 30000 "$KF"
+        jobs test_p2 2 24000 "$kf_events" 31000 "$KF"
+        jobs test_p10 10 24000 "$kf_events" 32000 "$KF"
+        jobs test_p45 45 24000 "$kf_events" 33000 "$KF"
+        jobs test_spectrum "$spectrum" 100000 "$kf_events" 34000 "$KF"
+    fi
+    if [[ $samples == *" val "* ]]; then jobs val "$spectrum" 100000 "$digi_events" 20000 "$DIGI"; fi
+    if [[ $samples == *" train "* ]]; then jobs train "$spectrum" 100000000 "$digi_events" "$train_seed" "$DIGI"; fi
 } | xargs -P "$parallel" -L 1 bash -c '
     here=$0 out=$1 envs=$2 sample=$3 momentum=$4 n=$5 seed=$6
     # jobs past the deadline exit immediately with a SKIPPED line
