@@ -63,12 +63,12 @@ def _toy_batch(n=300):
 
 
 def test_fitter_forward_and_batch_independence(tmp_path):
-    from fcctrackfit.data.shards import write_shard, add_dataset
+    from fcctrackfit.data.shards import write_seed_indices, write_shard
 
     shard = _toy_batch()
     path = tmp_path / "s.h5"
     write_shard(path, **{k: v for k, v in shard.items() if k != "seed_idx"})
-    add_dataset(path, "seed_idx", shard["seed_idx"])
+    write_seed_indices(path, shard["seed_idx"], shard["offsets"])
     norm = compute_norm([path], COLUMNS, 2.0, 0.02, 0.01)
     model = TrackFitter(COLUMNS, norm, 2.0, d_model=32, hidden=16, head_hidden=16).eval()
     idx = np.nonzero((shard["seed_idx"] >= 0).all(1))[0]

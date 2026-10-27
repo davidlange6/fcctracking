@@ -32,6 +32,6 @@ def test_convert_toy_edm4hep_roundtrip(tmp_path):
     np.testing.assert_allclose(got["kf"], shard["truth"], atol=1e-5, rtol=1e-5)
     assert np.array_equal(got["offsets"], shard["offsets"])
     # hits were written in reverse; the converter restores time order
-    np.testing.assert_allclose(got["hit_pos"], shard["hit_pos"], atol=1e-9)
+    np.testing.assert_allclose(got["hit_pos"], shard["hit_pos"], atol=2e-4)  # float32 storage
     for c in ("system", "layer", "t", "r"):
-        np.testing.assert_allclose(got["hit_feat"][:, COL[c]], shard["hit_feat"][:, COL[c]], rtol=1e-6)
+        np.testing.assert_allclose(got["hit_feat"][:, COL[c]], shard["hit_feat"][:, COL[c]], rtol=1e-6, atol=2e-4)

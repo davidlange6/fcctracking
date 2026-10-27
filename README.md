@@ -26,6 +26,13 @@ Training resumes from `out_dir/last.pt` if it exists.
 
 To find the collection names of a production: `python -m fcctrackfit.convert.inspect file.root`.
 
+## Shard format
+
+One HDF5 file per input file, ragged (flat hit arrays + `offsets`), gzip+shuffle compressed, float32 hit positions
+(0.12 µm quantisation at r = 2.1 m). KF datasets are written only when present. That comes to ~385 B/track with the KF
+baseline and ~295 B/track without (10 GeV CLD muons, 13 hits/track): ~0.3 GB per million training tracks. Details are
+in `fcctrackfit/data/shards.py`. `read_shard` rebuilds the full per-hit feature table in memory.
+
 ## CLD sample production
 
 `production/make_sample.sh PARTICLE ENERGY N_EVENTS SEED OUTDIR` runs one job. It does a ddsim particle gun

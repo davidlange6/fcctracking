@@ -36,7 +36,7 @@ def count_usable(paths):
     n = 0
     for p in paths:
         with h5py.File(p, "r") as f:
-            n += int((f["seed_idx"][()] >= 0).all(1).sum())
+            n += int((f["seed_local"][()] >= 0).all(1).sum())
     return n
 
 

@@ -6,7 +6,7 @@ import numpy as np
 import torch
 
 from fcctrackfit.data.dataset import gather_tracks, usable_tracks
-from fcctrackfit.data.shards import COL, add_dataset, layer_key, read_shard
+from fcctrackfit.data.shards import COL, layer_key, read_shard, write_seed_indices
 from fcctrackfit.model.fitter import RESIDUAL_FEATURES, make_targets
 from fcctrackfit.seed.conformal import estimate_seed, select_seed_hits
 from fcctrackfit.seed.residuals import seed_residuals
@@ -17,7 +17,7 @@ def add_seed_indices(path, seed_cfg):
     feat = shard["hit_feat"]
     seedable = np.isin(feat[:, COL["system"]].astype(int), seed_cfg["systems"])
     idx = select_seed_hits(shard["offsets"], layer_key(feat), seedable, feat[:, COL["r"]], seed_cfg["rule"])
-    add_dataset(path, "seed_idx", idx)
+    write_seed_indices(path, idx, shard["offsets"])
     return (idx >= 0).all(1).mean()
 
 
