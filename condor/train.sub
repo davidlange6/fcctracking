@@ -4,16 +4,16 @@
 #   ./make_bundle.sh                     # packs the committed code into fcctrackfit_code.tar.gz
 #   condor_submit train.sub              # defaults below
 #   condor_submit train.sub CONFIG=fcctrackfit/config/train/phase2.yaml RUN=cld_mu_v1_phase2 \
-#       NGPU=2 CPUS=16 "MEMORY=32 GB" INIT_FROM=/eos/user/d/dlange/fcctrack/runs/cld_mu_v1_phase1/final.pt
+#       NGPU=2 CPUS=16 "MEMORY=32 GB" INIT_FROM=/eos/user/d/dlange/fcctracking/runs/cld_mu_v1_phase1/final.pt
 # (phase 2 needs INIT_FROM: its config's init_from is a local path)
 #
 # Extra training overrides: OVERRIDES="train.epochs=10 train.lr=1e-4"
 # Newest GPUs only: condor_submit train.sub "GPUS=H100 NVL|H200"
 
 CONFIG    = fcctrackfit/config/train/phase1.yaml
-DATA      = /eos/user/d/dlange/fcctrack/cld_mu_v1
+DATA      = /eos/user/d/dlange/fcctracking/cld_mu_v1
 RUN       = cld_mu_v1_phase1
-RUNS_DIR  = /eos/user/d/dlange/fcctrack/runs
+RUNS_DIR  = /eos/user/d/dlange/fcctracking/runs
 NGPU      = 1
 CPUS      = 8
 MEMORY    = 16 GB

@@ -72,14 +72,14 @@ comes from EOS. The job uses the `LCG_110a_cuda` view (torch with CUDA), not key
 2. Copy them to EOS with the layout the job expects: `DATA/train/h5/*.h5`, `DATA/val/h5/*.h5`, `DATA/norm.json`.
 
        xrdcp -r data/cld/campaign_mu/train data/cld/campaign_mu/val data/cld/campaign_mu/norm.json \
-           root://eosuser.cern.ch//eos/user/d/dlange/fcctrack/cld_mu_v1/
+           root://eosuser.cern.ch//eos/user/d/dlange/fcctracking/cld_mu_v1/
 
 3. On lxplus, with a Kerberos ticket, in `condor/`:
 
        ./make_bundle.sh                 # git HEAD -> fcctrackfit_code.tar.gz (warns about uncommitted changes)
        condor_submit train.sub          # phase 1 with the defaults in train.sub
        condor_submit train.sub CONFIG=fcctrackfit/config/train/phase2.yaml RUN=cld_mu_v1_phase2 NGPU=2 CPUS=16 \
-           "MEMORY=32 GB" INIT_FROM=/eos/user/d/dlange/fcctrack/runs/cld_mu_v1_phase1/final.pt
+           "MEMORY=32 GB" INIT_FROM=/eos/user/d/dlange/fcctracking/runs/cld_mu_v1_phase1/final.pt
        condor_submit train.sub RUN=lr1e-4 OVERRIDES="train.lr=1e-4"
 
 `condor/train_job.sh` stages the shards to the node's scratch disk, then runs `scripts/train.py`, or `torchrun` when it
