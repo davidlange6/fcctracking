@@ -35,7 +35,14 @@ in GeV or a momentum range `PMIN:PMAX`. `production/launch_local.sh` splits a sa
 `SEED_BASE + i` and runs them in parallel. Give every sample a disjoint seed range.
 
 Measured on 32 cores (10 GeV μ, 1000 events per job, 10 jobs in parallel): sim ~105 s, reco ~290 s, convert ~40 s per job.
-10k events take about 7 min wall. Reconstruction (~0.27 s/event) is the bottleneck.
+10k events take about 7 min wall. With the KF, reconstruction (~0.25 s/event) is the bottleneck. A Gaudi
+`AlgTimingAuditor` run (`production/audit_timing.py`) puts ~123 ms/event in `TruthTrackFinder` and ~121 ms/event in
+`Refit`; perf shows nearly all of it in DDKalTest/aidaTT helix–surface intersection and DDRec `insideBounds`.
+
+Training samples don't need the KF baseline: `NO_KF=1 production/make_sample.sh ...` runs only the tracker
+digitisation (`--digiOnly`, added by `production/patch_cld_reco.py`). That takes 3.6 ms/event, so a job costs essentially
+the Geant4 time. Test samples should keep the full `--truthTracking` + `Refit` chain, because `SiTracks_Refitted` is 5–7 %
+better in d0/z0/φ/θ than the truth finder's own `SiTracks` fit.
 
 ## Sample contract (input to stage 1)
 

@@ -9,14 +9,16 @@
 #   SEED      random seed; also part of the output name, so use one per job
 #
 # Optional environment: COMPACT (geometry xml), COS_THETA_MAX (default 0.99),
-# KEEP_SIM=1 (keep the Geant4 output), DETECTOR_CFG (converter YAML).
+# KEEP_SIM=1 (keep the Geant4 output), DETECTOR_CFG (converter YAML),
+# NO_KF=1 (digitisation only: no truth tracking / KF refit; for training samples,
+#          which do not need the baseline; ~3x cheaper per event).
 #
 # Outputs: OUTDIR/raw/<name>_REC.edm4hep.root, OUTDIR/h5/<name>.h5, OUTDIR/logs/<name>_*.log
 # Needs the key4hep stack (K4GEO, CLDCONFIG).
 set -euo pipefail
 
 if [ $# -ne 5 ]; then
-    sed -n '2,15p' "$0"
+    sed -n '2,17p' "$0"
     exit 1
 fi
 particle=$1; energy=$2; nevents=$3; seed=$4; outdir=$(realpath -m "$5")
@@ -42,7 +44,9 @@ mkdir -p "$outdir/raw" "$outdir/h5" "$outdir/logs"
 work=$(mktemp -d "${TMPDIR:-/tmp}/cldprod_${name}_XXXX")
 trap 'rm -rf "$work"' EXIT
 cp -r "$CLDCONFIG/share/CLDConfig/." "$work/"
+python3 "$repo/production/patch_cld_reco.py" "$work/CLDReconstruction.py" "$work/CLDReconstruction.py"
 cd "$work"
+if [ "${NO_KF:-0}" = 1 ]; then reco_mode=(--digiOnly); else reco_mode=(--truthTracking); fi
 
 t0=$(date +%s)
 # uniform in cos(theta); no crossing-angle boost, so the gun defines the truth exactly
@@ -55,7 +59,7 @@ ddsim --steeringFile cld_steer.py --compactFile "$compact" \
 t1=$(date +%s)
 # k4run processes only 3 events unless -n -1 is given
 k4run CLDReconstruction.py --inputFiles "$work/${name}_sim.edm4hep.root" \
-      --outputBasename "$work/${name}" --trackingOnly --truthTracking \
+      --outputBasename "$work/${name}" --trackingOnly "${reco_mode[@]}" \
       --compactFile "$compact" -n -1 \
       > "$outdir/logs/${name}_reco.log" 2>&1
 t2=$(date +%s)
