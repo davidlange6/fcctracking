@@ -30,6 +30,9 @@ when_to_transfer_output = ON_EXIT
 output = logs/$(RUN).$(ClusterId).out
 error  = logs/$(RUN).$(ClusterId).err
 log    = logs/$(RUN).$(ClusterId).log
+# copy stdout/stderr back while the job runs, so tail -f logs/<RUN>.<ClusterId>.out works
+stream_output = True
+stream_error  = True
 
 request_gpus   = $(NGPU)
 # 4 CPUs / 12 GB fit every usable GPU slot, including the H100 MIG slices (1g.12gb: 6 CPUs,
