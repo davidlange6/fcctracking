@@ -91,6 +91,10 @@ GPU availability and job status (on lxplus):
         | awk '{t=$NF; f=$(NF-1); $NF=$(NF-1)=""; free[$0]+=f; tot[$0]+=t} END {for (k in tot) print free[k] "/" tot[k], k}'
     condor_q                                   # your jobs
     condor_q -better-analyze <ClusterId>       # why an idle job does not match
+    condor_tail <ClusterId>                    # current stdout of a running job
+
+The job's stdout/stderr reach `condor/logs/` only when it ends (CERN no longer allows streaming); while
+it runs, use `condor_tail`, or `train.out` in the EOS run directory (synced every 15 min).
 
 The H200s and some H100 NVLs only take jobs from the BE-ABP / ATS GPU groups, so they show up as free
 but never match. V100s are excluded: the LCG torch builds have no sm_70 kernels. The default request in
