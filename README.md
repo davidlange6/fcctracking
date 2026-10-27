@@ -15,7 +15,7 @@ Run everything with the package on the path: `export PYTHONPATH=$PWD:$PYTHONPATH
 
 | Stage | Command | Where |
 |---|---|---|
-| 0+1. CLD samples | `production/launch_local.sh mu- 10 10000 1000 10 data/cld/mu10 1000` (ddsim gun → CLDReconstruction `--truthTracking` → HDF5 shard, per job) | key4hep, CPU |
+| 0+1. CLD samples | `production/run_campaign.sh OUTDIR HOURS` or `production/make_sample.sh ...` (generator → ddsim → CLDReconstruction → HDF5 shard, per job) | key4hep, CPU |
 | 1. convert (other productions) | `python scripts/convert.py --detector fcctrackfit/config/detectors/cld.yaml --out data/cld/train files...` | key4hep, CPU, one job per file |
 | 2. prepare | `python scripts/prepare.py --detector .../cld.yaml --shards 'data/cld/*/*.h5' --train 'data/cld/train/*.h5' --out data/cld/norm.json` | CPU |
 | 3. train | `python scripts/train.py fcctrackfit/config/train/phase1.yaml` then `torchrun --nproc_per_node=2 scripts/train.py .../phase2.yaml` | GPU |
@@ -35,21 +35,27 @@ in `fcctrackfit/data/shards.py`. `read_shard` rebuilds the full per-hit feature 
 
 ## CLD sample production
 
-`production/make_sample.sh PARTICLE ENERGY N_EVENTS SEED OUTDIR` runs one job. It does a ddsim particle gun
-(uniform in cosθ, |cosθ| ≤ 0.99, no crossing-angle boost), then `CLDReconstruction.py --truthTracking --trackingOnly -n -1`
-(truth-hit `SiTracks` + KF refit `SiTracks_Refitted`), then conversion to `OUTDIR/h5/<name>.h5`. ENERGY is a fixed energy
-in GeV or a momentum range `PMIN:PMAX`. `production/launch_local.sh` splits a sample into such jobs with seeds
-`SEED_BASE + i` and runs them in parallel. Give every sample a disjoint seed range.
+`production/make_sample.sh PARTICLE MOMENTUM N_EVENTS SEED OUTDIR` runs one job:
+`production/gen_hepevt.py` (single particle, HEPEvt) → ddsim → `CLDReconstruction.py --trackingOnly` with
+`--truthTracking` (truth-hit `SiTracks` + KF refit `SiTracks_Refitted`) or, with `NO_KF=1`, `--digiOnly` → conversion
+to `OUTDIR/h5/<name>.h5`.
+- **Momentum:** sampled in p, either fixed (`10`) or a 50/50 log-uniform/uniform mixture (`0.2:50`).
+- **Direction:** uniform in cosθ (|cosθ| ≤ 0.99) and in φ.
+- **Particle:** a name like `mu` gives a random charge per event.
+- **Vertex:** Gaussian with σ_xy = 1 mm, σ_z = 20 mm, so the network cannot learn a d0 = z0 = 0 prior.
 
-Measured on 32 cores (10 GeV μ, 1000 events per job, 10 jobs in parallel): sim ~105 s, reco ~290 s, convert ~40 s per job.
-10k events take about 7 min wall. With the KF, reconstruction (~0.25 s/event) is the bottleneck. A Gaudi
-`AlgTimingAuditor` run (`production/audit_timing.py`) puts ~123 ms/event in `TruthTrackFinder` and ~121 ms/event in
-`Refit`; perf shows nearly all of it in DDKalTest/aidaTT helix–surface intersection and DDRec `insideBounds`.
+`production/run_campaign.sh OUTDIR HOURS` runs a whole campaign from one queue of ~30 min jobs (`PARALLEL`, default 30, at
+a time). The KF test samples come first (p = 0.5, 2, 10, 45 GeV and the training spectrum), then validation and training
+(digitisation only) until the deadline. To run it detached from the session:
 
-Training samples don't need the KF baseline: `NO_KF=1 production/make_sample.sh ...` runs only the tracker
-digitisation (`--digiOnly`, added by `production/patch_cld_reco.py`). That takes 3.6 ms/event, so a job costs essentially
-the Geant4 time. Test samples should keep the full `--truthTracking` + `Refit` chain, because `SiTracks_Refitted` is 5–7 %
-better in d0/z0/φ/θ than the truth finder's own `SiTracks` fit.
+    setsid nohup production/run_campaign.sh data/cld/campaign_mu 3 > data/cld/campaign_mu.out 2>&1 < /dev/null &
+
+Progress is in `OUTDIR/campaign.log` (start, failures, final shard counts) and `OUTDIR/<sample>.jobs.log` (one line per job).
+
+Costs per event (32 cores, 10 parallel jobs, 10 GeV μ): Geant4 ~0.07 s; KF reconstruction ~0.27 s (a Gaudi
+`AlgTimingAuditor` run with `production/audit_timing.py` puts ~123 ms in `TruthTrackFinder` and ~121 ms in `Refit`, which
+perf shows is nearly all DDKalTest/aidaTT helix–surface intersection); digitisation only 3.6 ms; conversion ~0.04 s.
+Test samples keep `Refit`, because `SiTracks_Refitted` is 5–7 % better in d0/z0/φ/θ than the truth finder's own fit.
 
 ## Sample contract (input to stage 1)
 
