@@ -1,4 +1,4 @@
-# Status and restart notes (2026-10-27)
+# Status and restart notes (updated 2026-10-28)
 
 What has been done, where everything is, and what comes next. How to run each stage is in
 `README.md`; this file holds the state of the work.
@@ -10,7 +10,7 @@ What has been done, where everything is, and what comes next. How to run each st
 | Code | `git@github.com:davidlange6/fcctracking.git`; working clone `/dlange/tracking` on vocms010; submit clone `~/fcctracking` on lxplus (AFS) |
 | Paper | `/dlange/tracking/2609.32479.pdf` (arXiv:2609.32479, not in git) |
 | Local samples | `/dlange/tracking/data/cld/campaign_mu/{train,val,test_p0.5,test_p2,test_p10,test_p45,test_spectrum}/h5/` and `norm.json` |
-| EOS data | `/eos/user/d/dlange/fcctracking/cld_mu_v1/` (3.6M train shards + val + tests + norm.json) |
+| EOS data | `/eos/user/d/dlange/fcctracking/cld_mu_v1/` (3.6M train tracks, used for phase 1) and `cld_mu_v2/` (31.7M train tracks: v1 + the 15 h campaign), each with val, tests and norm.json |
 | EOS runs | `/eos/user/d/dlange/fcctracking/runs/<RUN>/` (`last.pt`, `final.pt`, `log.csv`, `train.out`) |
 | Phase-1 model | `runs/cld_mu_v1_phase1/final.pt` (local copy) and on EOS |
 | Evaluation | `eval/cld_mu_v1_phase1/` (tables, plots vs cosθ and pT, predictions) |
@@ -35,11 +35,10 @@ What has been done, where everything is, and what comes next. How to run each st
 - **Test samples:** KF (`SiTracks_Refitted`) included:
   - p = 0.5, 2, 10, 45 GeV: 24k events each;
   - test_spectrum: 100k events.
-- **Running now (started 16:55):** a 15 h training campaign. It adds shards with seeds 100000+ to the same
-  `train/h5`. Last job starts 2026-10-28 07:25, so it ends about 07:40. Expected about 30M more tracks.
-  - Process group 1032839; stop it with `kill -- -1032839`.
-  - Logs: `data/cld/campaign_mu/campaign.log`, `train.jobs.log`.
-  - Digitisation-only jobs delete their ROOT files after conversion.
+- **Second training campaign** (2026-10-27 16:55 to 10-28 07:36, 880 min, no failures): 2,277 shards with
+  28.16M tracks, seeds 100000+, in the same `train/h5`. The total training sample is 2,567 shards, 31.7M
+  tracks, 8.3 GB. It was prepared and pushed to EOS as `cld_mu_v2`. The refitted resolution parameters
+  agree with the phase-1 fit to within about 2 %.
 - **Costs:**
   - digitisation-only training job: ~10.5 min per 12.5k events;
   - throughput: ~35k training tracks/min with 30 slots;
@@ -67,12 +66,9 @@ What has been done, where everything is, and what comes next. How to run each st
   the model avoids.
 
 ## Next steps
-1. **After the campaign ends:**
-   - check `campaign.log` for failures;
-   - run `prepare.py` on all shards (old and new together, about 34M tracks);
-   - run `production/push_to_eos.sh data/cld/campaign_mu /eos/user/d/dlange/fcctracking/cld_mu_v2`.
-2. **Before submitting:** add `request_disk = 25 GB` to `condor/train.sub`; the staged data will be about
-   10 GB. Then commit, and on lxplus run `git pull` and `./make_bundle.sh`.
+1. Done: campaign checked, `prepare.py` run, `cld_mu_v2` pushed to EOS, `request_disk` added to
+   `condor/train.sub` (the `DISK` macro, 25 GB).
+2. Before submitting: `git pull` and `./make_bundle.sh` on lxplus (done on 2026-10-28).
 3. **Submit:** `condor_submit train.sub DATA=/eos/user/d/dlange/fcctracking/cld_mu_v2 RUN=cld_mu_v2_phase1
    OVERRIDES="train.epochs=8"`.
    - This is about 16.6k steps (~42 min) per epoch, so 8 epochs take about 6 h on a MIG slice.

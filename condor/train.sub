@@ -17,6 +17,7 @@ RUNS_DIR  = /eos/user/d/dlange/fcctracking/runs
 NGPU      = 1
 CPUS      = 4
 MEMORY    = 12 GB
+DISK      = 25 GB
 INIT_FROM =
 OVERRIDES =
 
@@ -39,6 +40,8 @@ request_gpus   = $(NGPU)
 # Data-loader workers = CPUs - 1 per GPU (train_job.sh).
 request_cpus   = $(CPUS)
 request_memory = $(MEMORY)
+# the staged shards (~10 GB for cld_mu_v2) go to the slot's scratch disk
+request_disk   = $(DISK)
 # "testmatch" = 3 days, "nextweek" = 1 week. The job resumes from $(RUNS_DIR)/$(RUN)/last.pt
 # if it is resubmitted after hitting the limit.
 +JobFlavour = "testmatch"
