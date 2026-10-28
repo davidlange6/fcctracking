@@ -109,5 +109,8 @@ What has been done, where everything is, and what comes next. How to run each st
 - **Usable GPUs:** A100, open H100 NVL, H100 MIG slices, T4. A request of 4 CPUs / 12 GB fits the MIG slices.
   Count GPUs with torch, not `nvidia-smi -L`, which lists MIG instances as extra lines.
 - **`xrdcp -r`** needs an existing destination directory.
+- **`condor_submit train.sub KEY=value` only works because of the `if !defined` blocks:** condor applies
+  command-line macros before reading the file, so plain `KEY = default` lines in the file override them.
+  (Fixed 2026-10-28. Before that, all overrides were silently ignored.)
 - **GPU status:** `condor_status -constraint 'TotalGpus > 0 && SlotType == "Partitionable"' -af
   GPUs_DeviceName Gpus TotalGpus`; `condor_q -better-analyze <id>` explains why a job is idle.
