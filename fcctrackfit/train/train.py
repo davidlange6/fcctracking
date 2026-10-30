@@ -3,6 +3,7 @@
 import csv
 import glob
 import os
+import shutil
 import time
 
 import h5py
@@ -94,13 +95,13 @@ def train(cfg):
     steps_per_epoch = max(1, int(n_tracks // (t["batch_size"] * world)))
     total = steps_per_epoch * t["epochs"]
 
-    start_epoch, step = 0, 0
+    start_epoch, step, best = 0, 0, np.inf
     resume = os.path.join(out_dir, "last.pt")
     if os.path.exists(resume):
         ckpt = torch.load(resume, map_location=device, weights_only=False)
         model.load_state_dict(ckpt["model"])
         opt.load_state_dict(ckpt["opt"])
-        start_epoch, step = ckpt["epoch"] + 1, ckpt["step"]
+        start_epoch, step, best = ckpt["epoch"] + 1, ckpt["step"], ckpt.get("best", np.inf)
         if rank == 0:
             print(f"resumed from {resume} at epoch {start_epoch}")
 
@@ -137,10 +138,18 @@ def train(cfg):
             writer.writerow([epoch, step, running / max(n_seen, 1)] +
                             [s["model"]["clipped_rms"] for s in summary["params"].values()])  # fmt: skip
             log.flush()
+            # best.pt: lowest mean log(model / seed) clipped RMS over the fitted parameters
+            score = float(np.mean([np.log(s["model"]["clipped_rms"] / s["seed"]["clipped_rms"])
+                                   for s in summary["params"].values()]))  # fmt: skip
+            improved = score < best
+            best = min(best, score)
             ckpt = {"model": model.state_dict(), "opt": opt.state_dict(), "epoch": epoch, "step": step,
-                    "cfg": cfg, "norm": norm, "bz": bz}  # fmt: skip
+                    "cfg": cfg, "norm": norm, "bz": bz, "best": best}  # fmt: skip
             torch.save(ckpt, resume + ".tmp")
             os.replace(resume + ".tmp", resume)
+            if improved:
+                shutil.copyfile(resume, os.path.join(out_dir, "best.pt.tmp"))
+                os.replace(os.path.join(out_dir, "best.pt.tmp"), os.path.join(out_dir, "best.pt"))
         if ddp:
             dist.barrier()
     if rank == 0:

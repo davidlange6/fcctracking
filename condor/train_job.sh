@@ -4,7 +4,7 @@
 #     CONFIG    training YAML inside the code bundle, e.g. fcctrackfit/config/train/phase1.yaml
 #     EOS_DATA  directory with train/h5/*.h5, val/h5/*.h5 and norm.json (output of the
 #               production campaign after scripts/prepare.py), e.g. /eos/user/d/dlange/fcctracking/cld_mu_v1
-#     EOS_OUT   run directory on EOS; checkpoints (last.pt, final.pt), log.csv and train.out are
+#     EOS_OUT   run directory on EOS; checkpoints (last.pt, best.pt, final.pt), log.csv and train.out are
 #               synced there every SYNC_SECONDS and at exit. If EOS_OUT/last.pt exists the job resumes.
 # Environment (set in the submit file): EOS_MGM (default root://eosuser.cern.ch; "local" uses plain
 # cp, for testing), INIT_FROM (EOS path of a checkpoint to start from, e.g. phase 1 final.pt),
@@ -75,7 +75,7 @@ if [ -n "${INIT_FROM:-}" ]; then
 fi
 
 sync_out() {
-    for f in last.pt final.pt log.csv train.out; do
+    for f in last.pt best.pt final.pt log.csv train.out; do
         if [ -f "$scratch/run/$f" ]; then put "$scratch/run/$f" "$eos_out/$f" || true; fi
     done
 }
